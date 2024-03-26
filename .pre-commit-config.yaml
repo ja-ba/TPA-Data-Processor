@@ -1,0 +1,40 @@
+default_language_version:
+  python: python311
+
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v2.3.0
+    hooks:
+    -   id: check-yaml
+    # -   id: end-of-file-fixer
+    -   id: trailing-whitespace
+    -   id: requirements-txt-fixer
+    -   id: detect-private-key
+    -   id: check-toml
+-   repo: https://github.com/psf/black
+    rev: 22.10.0
+    hooks:
+    -   id: black
+-   repo: https://github.com/pre-commit/pygrep-hooks
+    rev: v1.10.0  # Use the ref you want to point at
+    hooks:
+    -   id: python-use-type-annotations
+    -   id: rst-inline-touching-normal
+    -   id: text-unicode-replacement-char
+-   repo: https://github.com/asottile/reorder-python-imports
+    rev: v3.11.0
+    hooks:
+    -   id: reorder-python-imports
+-   repo: https://github.com/astral-sh/ruff-pre-commit
+    # Ruff version.
+    rev: v0.0.291
+    hooks:
+        - id: ruff
+-   repo: https://github.com/pre-commit/mirrors-mypy
+    rev: ''  # Use the sha / tag you want to point at
+    hooks:
+    -   id: mypy
+-   repo: https://github.com/dosisod/refurb
+    rev: ''
+    hooks:
+    -   id: refurb

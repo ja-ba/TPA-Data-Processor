@@ -1,0 +1,11 @@
+.venv/
+.tox/
+*.egg-info
+*.pem
+*.pyc
+*/example_key.txt
+*.ipynb
+*/__pycache__/
+*.coverage
+
+Maps_HTML/

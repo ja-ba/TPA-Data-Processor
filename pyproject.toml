@@ -1,0 +1,100 @@
+[project]
+name = "tpa-data-processor"
+version = "0.0.1"
+license = {file = "LICENSE"}
+authors = [
+  {email = "jakobs.dataprojects@gmail.com"},
+  {name = "Jakob Baier"}
+]
+description = "A package for crawling and transforming gas prices from Germany"
+dependencies = ["pandas>=2.0, <2.2",
+                "pyyaml",
+                "cloud_storage_wrapper @ git+https://github.com/ja-ba/Cloud-Storage-Wrapper.git@v0.0.2",
+                "leafmap~=0.22.0",
+                "folium~=0.13.0",
+                "psutil~=5.9.8",
+                "matplotlib",
+                "pydantic~=2.6"
+                ]
+
+[project.urls]
+homepage = "https://example.com"
+documentation = "https://readthedocs.org"
+repository = "https://github.com"
+changelog = "https://github.com/me/spam/blob/master/CHANGELOG.md"
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.optional-dependencies]
+test = [
+  "tox",
+  "pytest>=7.0",
+  "pytest-cov[all]",
+  "seaborn>=0.11.1",
+  "ipykernel"
+]
+
+
+[tool.tox]
+legacy_tox_ini = """
+[tox]
+min_version = 4.0
+envlist = py38, py39, py310, py311
+isolated_build = True
+
+[testenv]
+commands =
+  pytest -s -m "not slow"
+deps =
+    pytest>=7.0
+
+
+[testenv:ruff]
+deps =
+    ruff
+commands =
+    ruff {posargs:src test}
+
+[testenv:format]
+skip_install = True
+deps =
+    black
+commands =
+    black {posargs:--check --diff src test}
+
+
+[testenv:typecheck]
+deps =
+    mypy
+    types-termcolor
+commands = mypy --ignore-missing-imports {posargs:src test}
+
+[testenv:coverage]
+deps =
+    pytest>=7.0
+    pytest-cov
+commands = pytest -s --cov=tpa_data_processor
+
+
+[testenv:build]
+# Configuration for the build environment
+whitelist_externals = tox
+commands =
+  tox
+  tox -e typecheck
+  tox -e ruff
+  tox -e format
+  # pyproject-build
+
+"""
+
+[tool.ruff]
+ignore = ["E501"]
+
+[tool.refurb]
+ignore = [126]

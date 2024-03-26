@@ -1,0 +1,40 @@
+existing_price_df_path: "BASE_df.parquet"
+existing_price_df_date_col: "Day_Hours"
+existing_price_df_format: "parquet"
+
+target_price_df: "BASE_df.parquet"
+target_price_df_format: "parquet"
+
+wide_df: "BASE_df_wide.ftr"
+wide_df_format: "ftr"
+wide_df_date_col: "Day_Hours"
+
+station_df: "LU_STATIONS_df.ftr"
+station_df_format: "ftr"
+station_365: "LU_STATIONS_df_365.ftr"
+station_365_format: "ftr"
+station_30: "LU_STATIONS_df_30.ftr"
+station_30_format: "ftr"
+df_weekly: "BASE_df_weekly_agg.ftr"
+df_weekly_format: "ftr"
+week_mapper: "LU_week_mapper_for_maps.csv"
+week_mapper_format: "csv"
+map_directory: Maps_HTML/
+
+
+oci_config:
+  user: "ocid1.user.oc1..aaaaaaaabn5z4iq7l3j2vpohtwrew2vo46txvh6jxmppkm7l47j6rwqzjvnq"
+  fingerprint: "6b:29:11:28:b4:01:14:58:4d:5f:41:b9:de:92:43:54"
+  tenancy: "ocid1.tenancy.oc1..aaaaaaaavqyu7qyfu4ysj4g47phqalghd6vupj6gqckxcuf3cmxqe6dr2wpa"
+  region: "eu-frankfurt-1"
+  bucket_name: "my_test_bucket"
+  compartment_id: "jakobsdataprojects"
+  key_file: "test/example_key.pem"
+  direct_key: ""
+  env_key: ""
+
+verbose: True
+pre_Link_price: "https://dev.azure.com/tankerkoenig/362e70d1-bafa-4cf7-a346-1f3613304973/_apis/git/repositories/0d6e7286-91e4-402c-af56-fa75be1f223d/items?path="
+post_Link_price: "&versionDescriptor%5BversionOptions%5D=0&versionDescriptor%5BversionType%5D=0&versionDescriptor%5Bversion%5D=master&resolveLfs=true&%24format=octetStream&api-version=5.0&download=true"
+pre_Link_stations: "https://dev.azure.com/tankerkoenig/362e70d1-bafa-4cf7-a346-1f3613304973/_apis/git/repositories/0d6e7286-91e4-402c-af56-fa75be1f223d/items?path="
+post_Link_stations: "&versionDescriptor%5BversionOptions%5D=0&versionDescriptor%5BversionType%5D=0&versionDescriptor%5Bversion%5D=master&resolveLfs=true&%24format=octetStream&api-version=5.0&download=true"
