@@ -8,6 +8,7 @@ from airflow.providers.ssh.operators.ssh import SSHOperator
 # Retrieve the value of an environment variable
 package_version = Variable.get("PACKAGE_VERSION")
 tpa_config = Variable.get("TPA_CONFIG")
+oci_key = Variable.get("OCI_STORAGE_KEY")
 
 sshHook1 = SSHHook(ssh_conn_id="oci_data_processing", conn_timeout=3600)
 
@@ -36,9 +37,22 @@ cd prod""",
         command=f"""python3.9 -m pip install --user --upgrade --quiet pip
 python3.9 -m venv myvirtualenv
 source myvirtualenv/bin/activate
+python3.9 -m pip install --upgrade pip
 python -m pip install git+https://github.com/ja-ba/TAPA-Data-Processor.git@{package_version}
 which python""",
         dag=dag,
+        environment={"TPA_CONFIG": tpa_config},
+    )
+
+    write_config = SSHOperator(
+        task_id="write_config",
+        ssh_hook=sshHook1,
+        command=f"""
+        cat << EOF > tpa_config.yaml
+        {tpa_config}
+        """,
+        dag=dag,
+        environment={"TPA_CONFIG": tpa_config},
     )
 
     # Task for running python script Daily_Delta_Load.py
@@ -46,10 +60,11 @@ which python""",
         task_id="DailyDeltaLoad",
         ssh_conn_id="oci_data_processing",
         command=f"""source ~/myvirtualenv/bin/activate
-python3.9 -c from tpa_data_processor.Loader import DailyLoader; \
-currentDL = DailyLoader(config_path={tpa_config}, full_load=False, verbose=True); \
+export OCI_KEY='{oci_key}'
+python -c 'from tpa_data_processor.Loader import DailyLoader; \
+currentDL = DailyLoader(config_path="tpa_config.yaml", full_load=False, verbose=True); \
 currentDL.process(); \
-currentDL.save_dfs();""",
+currentDL.save_dfs();'""",
         dag=dag,
         cmd_timeout=3600,
     )
@@ -59,10 +74,11 @@ currentDL.save_dfs();""",
         task_id="DailyWideLoad",
         ssh_conn_id="oci_data_processing",
         command=f"""source ~/myvirtualenv/bin/activate
-python3.9 -c from tpa_data_processor.Loader import DailyWideLoader; \
-currentDWL = DailyWideLoader(config_path={tpa_config}, verbose=True); \
-currentDWL.process(); \
-currentDWL.save_dfs();""",
+    export OCI_KEY='{oci_key}'
+    python -c 'from tpa_data_processor.Loader import DailyWideLoader; \
+    currentDWL = DailyWideLoader(config_path="tpa_config.yaml", verbose=True); \
+    currentDWL.process(); \
+    currentDWL.save_dfs();'""",
         dag=dag,
         cmd_timeout=3600,
     )
@@ -70,13 +86,16 @@ currentDWL.save_dfs();""",
     # Determine if the last dag has to be processed, 0=Monday, 6=Sunday
     command_weekly = (
         f"""source ~/myvirtualenv/bin/activate
-python3.9 -c from tpa_data_processor.Loader import WeeklyLoader; \
-currentDWL = WeeklyLoader(config_path={tpa_config}, fullLoad=False, verbose=True); \
-currentDWL.process(); \
-currentDWL.save_dfs(); \
-currentDWL.create_upload_htmls();"""
+    export OCI_KEY='{oci_key}'
+    python -c 'from tpa_data_processor.Loader import WeeklyLoader; \
+    currentDWL = WeeklyLoader(config_path="tpa_config.yaml", fullLoad=False, verbose=True); \
+    currentDWL.process(); \
+    currentDWL.save_dfs(); \
+    currentDWL.create_upload_htmls();'
+    rm tpa_config.yaml"""
         if datetime.today().weekday() == 6
-        else "echo Nothing to do for WeeklyLoader"
+        else """echo Nothing to do for WeeklyLoader
+            rm tpa_config.yaml"""
     )
 
     # Task for running python script Weekly_Map_Load.py
@@ -88,4 +107,12 @@ currentDWL.create_upload_htmls();"""
         cmd_timeout=3600,
     )
 
-    makeDir >> createVirtualEnv >> DailyDeltaLoad >> DailyWideLoad >> WeeklyMapLoad
+    # makeDir >> createVirtualEnv >> DailyDeltaLoad >> DailyWideLoad >> WeeklyMapLoad
+    (
+        makeDir
+        >> createVirtualEnv
+        >> write_config
+        >> DailyDeltaLoad
+        >> DailyWideLoad
+        >> WeeklyMapLoad
+    )
