@@ -23,7 +23,7 @@ pyproject-build
 tox -p
 
 #Running specifix tox env:
-tox -e py310
+tox -e py39
 
 #Running tox where env is recreated to install new dependencies:
 tox --recreate

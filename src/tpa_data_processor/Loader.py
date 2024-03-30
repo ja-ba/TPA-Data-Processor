@@ -61,22 +61,18 @@ class OCI_Config_Base(BaseModel):
     env_key: str
 
 
-def get_config(config_path_str: str) -> dict:
+def get_config(config_path: str) -> dict:
     """A shared function taking a path to the config YAML and returning the contents as a dictionary
 
     Args:
-        config_path_str (str): The path to the config file or the content of the
+        config_path (str): The path to the config file or the content of the
 
     Returns:
         dict: A dictionary with the loaded config
     """
 
-    try:
-        with open(config_path_str, "r") as file:
-            # Load the contents of the file
-            configDict = yaml.safe_load(file)
-
-    except Exception:
+    with open(config_path, "r") as file:
+        # Load the contents of the file
         configDict = yaml.safe_load(file)
 
     return Config_Base(**configDict).model_dump()
@@ -164,7 +160,7 @@ class DailyLoader:
         """This function determines the dates for processing and stores them in the datelist attribute of the class
 
         Raises:
-            ValueError: If the provided start and/or end dates provide an empty date list
+            ValueError: If fullLoad was set to True, but no start date was provided.
         """
         if not self.fullLoad:
             # If no fullLoad is requried, the existing_price_df has to be downloaded
@@ -210,10 +206,8 @@ class DailyLoader:
             raise ValueError("fullLoad was set to True, but no start date was provided")
 
         # Check if datelist is empty and raise ValueError if so
-        if len(self.dateList) == 0:
-            raise ValueError(
-                f"The provides start ({self.start_}) and end dates ({self.end_}) result in an empty date list"
-            )
+        if len(self.dateList) == 0 & self.verbose:
+            print("Datelist was empty")
 
     def _get_price_df(self) -> tuple:
         """Downloads the individual price data points and combines them to the relevant data frame
@@ -627,32 +621,37 @@ class DailyLoader:
     def process(self) -> None:
         """A function calling all the necessary steps (i.e. the class methods) in the correct order"""
         self.get_dates()
-        self.process_station_df()
-        self.process_price_df()
+        if len(self.dateList) > 0:
+            self.process_station_df()
+            self.process_price_df()
+        elif self.verbose:
+            print("Skipping processing because datelist was empty")
 
     def save_dfs(self) -> None:
         """A function uploading all processed dfs (self.priceDF and self.stationDF) to cloud storage"""
-        # Upload price df:
-        price_ref_path = f"oci://{self.configDict['oci_config']['bucket_name']}@{self.ociConfig.namespace}/{self.configDict['target_price_df']}"
-        upload.upload_df(
-            df=self.priceDF,
-            path=price_ref_path,
-            format=self.configDict["target_price_df_format"],
-            config=self.ociConfig.config,
-            chunk_size=10000,
-            verbose=self.verbose,
-        )
 
-        # Upload station df:
-        station_ref_path = f"oci://{self.configDict['oci_config']['bucket_name']}@{self.ociConfig.namespace}/{self.configDict['station_df']}"
-        upload.upload_df(
-            self.stationDF,
-            path=station_ref_path,
-            format=self.configDict["station_df_format"],
-            config=self.ociConfig.config,
-            chunk_size=10000,
-            verbose=self.verbose,
-        )
+        if len(self.dateList) > 0:
+            # Upload price df:
+            price_ref_path = f"oci://{self.configDict['oci_config']['bucket_name']}@{self.ociConfig.namespace}/{self.configDict['target_price_df']}"
+            upload.upload_df(
+                df=self.priceDF,
+                path=price_ref_path,
+                format=self.configDict["target_price_df_format"],
+                config=self.ociConfig.config,
+                chunk_size=10000,
+                verbose=self.verbose,
+            )
+
+            # Upload station df:
+            station_ref_path = f"oci://{self.configDict['oci_config']['bucket_name']}@{self.ociConfig.namespace}/{self.configDict['station_df']}"
+            upload.upload_df(
+                self.stationDF,
+                path=station_ref_path,
+                format=self.configDict["station_df_format"],
+                config=self.ociConfig.config,
+                chunk_size=10000,
+                verbose=self.verbose,
+            )
 
 
 class DailyWideLoader:
