@@ -801,9 +801,9 @@ class DailyWideLoader:
             gc.collect()
 
         # Combine list into df_wide_final
-        self.df_wide_final = pd.concat(df_list, axis=1, ignore_index=False).reset_index(
-            drop=True
-        )
+        self.df_wide_final = pd.concat(
+            df_list, axis=1, ignore_index=False
+        ).reset_index()
         print("SUCCESS: Chunks combined")
 
     def process(self) -> None:
