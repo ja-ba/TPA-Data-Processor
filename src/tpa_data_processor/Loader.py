@@ -8,14 +8,14 @@ import numpy as np
 import pandas as pd
 import psutil
 import yaml  # type: ignore
-from cloud_storage_wrapper.oci_access.config import OCI_Connection
+from cloud_storage_wrapper.oci_access.config import create_OCI_Connection_from_dict
+from cloud_storage_wrapper.oci_access.pandas import create_PandasOCI_from_dict
 from pydantic import BaseModel
 from tpa_data_processor.utils import date_helpers
 from tpa_data_processor.utils import download
-from tpa_data_processor.utils import upload
 from tpa_data_processor.utils.map_class import Map_List
 
-# Set string storage to üyarrow as default
+# Set string storage to pyarrow as default
 pd.options.mode.string_storage = "pyarrow"
 
 
@@ -48,19 +48,6 @@ class Config_Base(BaseModel):
     post_Link_stations: str
 
 
-# Pydantic Base Class
-class OCI_Config_Base(BaseModel):
-    user: str
-    fingerprint: str
-    tenancy: str
-    region: str
-    bucket_name: str
-    compartment_id: str
-    key_file: str
-    direct_key: str
-    env_key: str
-
-
 def get_config(config_path: str) -> dict:
     """A shared function taking a path to the config YAML and returning the contents as a dictionary
 
@@ -78,35 +65,6 @@ def get_config(config_path: str) -> dict:
     return Config_Base(**configDict).model_dump()
 
     # TODO: Change argument to Pathlib type
-
-
-def get_oci_config(configDict: dict) -> OCI_Connection:
-    """A function creating an OCI_Connection object based on a config dict
-
-    Args:
-        configDict (dict): a config dict containing the
-
-    Returns:
-        OCI_Connection: Returns the OCI Connection object
-    """
-    if "oci_config" not in configDict:
-        raise ValueError("passed dictionary does not contain the key 'oci_config'")
-
-    configDict_Base = OCI_Config_Base(**configDict["oci_config"]).model_dump()
-
-    ociConfig = OCI_Connection(
-        user=configDict_Base["user"],
-        fingerprint=configDict_Base["fingerprint"],
-        tenancy=configDict_Base["tenancy"],
-        region=configDict_Base["region"],
-        bucket_name=configDict_Base["bucket_name"],
-        compartment_id=configDict_Base["compartment_id"],
-        key_file=configDict_Base["key_file"],
-        direct_key=configDict_Base["direct_key"],
-        env_key=configDict_Base["env_key"],
-    )
-
-    return ociConfig
 
 
 # Define chunk-creating function
@@ -152,7 +110,8 @@ class DailyLoader:
         self.stationDF = pd.DataFrame()
         self.stationDF_reduced = pd.DataFrame()
         self.configDict = get_config(config_path)
-        self.ociConfig = get_oci_config(self.configDict)
+        self.ociConfig = create_OCI_Connection_from_dict(self.configDict)
+        self.ociPandasConfig = create_PandasOCI_from_dict(self.configDict)
 
         self.dateList: list = []
 
@@ -164,12 +123,10 @@ class DailyLoader:
         """
         if not self.fullLoad:
             # If no fullLoad is requried, the existing_price_df has to be downloaded
-            existing_price_df = download.download_df(
+            existing_price_df = self.ociPandasConfig.retrieve_df(
                 path=self.configDict["existing_price_df_path"],
-                config_=self.ociConfig,
-                columns=[self.configDict["existing_price_df_date_col"]],
                 df_format=self.configDict["existing_price_df_format"],
-                verbose=self.verbose,
+                columns=[self.configDict["existing_price_df_date_col"]],
             )
 
             # In the case that no end_ date is provided, we use get_time_interval_from_df() which creates the date list until yesterday
@@ -218,12 +175,9 @@ class DailyLoader:
         # Ref df initialized to None, if not fullLoad (i.e. delta-load), we download the old price df
         existing_price_df = pd.DataFrame()
         if not self.fullLoad:
-            existing_price_df = download.download_df(
+            existing_price_df = self.ociPandasConfig.retrieve_df(
                 path=self.configDict["existing_price_df_path"],
-                config_=self.ociConfig,
-                # columns=self.configDict["existing_price_df_date_col"],
                 df_format=self.configDict["existing_price_df_format"],
-                verbose=self.verbose,
             )
 
         # Download the price files according to self.dateList
@@ -277,11 +231,9 @@ class DailyLoader:
         """
         existing_price_df = pd.DataFrame()
         if not self.fullLoad:
-            existing_price_df = download.download_df(
+            existing_price_df = self.ociPandasConfig.retrieve_df(
                 path=self.configDict["station_df"],
-                config_=self.ociConfig,
                 df_format=self.configDict["station_df_format"],
-                verbose=self.verbose,
             )
 
         current_df = download.download_multiple_files(
@@ -332,7 +284,7 @@ class DailyLoader:
                     stations["uuid"] == stat, "short_id"
                 ] = stations_without_shortid.loc[
                     stations_without_shortid["uuid"] == stat, "short_id"
-                ].values[
+                ].values[  # type: ignore
                     0
                 ]
 
@@ -633,24 +585,20 @@ class DailyLoader:
         if len(self.dateList) > 0:
             # Upload price df:
             price_ref_path = f"oci://{self.configDict['oci_config']['bucket_name']}@{self.ociConfig.namespace}/{self.configDict['target_price_df']}"
-            upload.upload_df(
+            self.ociPandasConfig.write_df(
                 df=self.priceDF,
                 path=price_ref_path,
-                format=self.configDict["target_price_df_format"],
-                config=self.ociConfig.config,
+                df_format=self.configDict["target_price_df_format"],
                 chunk_size=10000,
-                verbose=self.verbose,
             )
 
             # Upload station df:
             station_ref_path = f"oci://{self.configDict['oci_config']['bucket_name']}@{self.ociConfig.namespace}/{self.configDict['station_df']}"
-            upload.upload_df(
-                self.stationDF,
+            self.ociPandasConfig.write_df(
+                df=self.stationDF,
                 path=station_ref_path,
-                format=self.configDict["station_df_format"],
-                config=self.ociConfig.config,
+                df_format=self.configDict["station_df_format"],
                 chunk_size=10000,
-                verbose=self.verbose,
             )
 
 
@@ -671,7 +619,8 @@ class DailyWideLoader:
         self.short_ids_last_365: list = []
         self.dateList: list = []
         self.configDict = get_config(config_path)
-        self.ociConfig = get_oci_config(self.configDict)
+        self.ociConfig = create_OCI_Connection_from_dict(self.configDict)
+        self.ociPandasConfig = create_PandasOCI_from_dict(self.configDict)
         self.max_date: datetime = datetime(1970, 1, 1)
         self.min_date: datetime = datetime(1970, 1, 2)
 
@@ -680,11 +629,9 @@ class DailyWideLoader:
     def load_df_alt(self) -> None:
         """Loads the old price df for the last 365 days (with respect to the maximum date in the price df) --> This serves as a basis for the calculation of the wide df"""
         # Load df_alt
-        self.priceDF = download.download_df(
+        self.priceDF = self.ociPandasConfig.retrieve_df(
             path=self.configDict["existing_price_df_path"],
-            config_=self.ociConfig,
             df_format=self.configDict["existing_price_df_format"],
-            verbose=self.verbose,
         )
 
         # Reduce it to the last 365 days of data
@@ -706,14 +653,12 @@ class DailyWideLoader:
     def create_Tankstellen_info_365(self) -> None:
         """Builds a filtered version of Tankstellen_info with only stations that reported prices in the last 365 days"""
         # Identify stations with transactions in last 365 days
-        self.short_ids_last_365 = self.priceDF["short_id"].unique()
+        self.short_ids_last_365 = self.priceDF["short_id"].unique()  # type: ignore
 
         # Load Tankstellen_info
-        self.Tankstellen_info = download.download_df(
+        self.Tankstellen_info = self.ociPandasConfig.retrieve_df(
             path=self.configDict["station_df"],
-            config_=self.ociConfig,
             df_format=self.configDict["station_df_format"],
-            verbose=self.verbose,
         )
 
         self.Tankstellen_info_365 = self.Tankstellen_info[
@@ -735,9 +680,9 @@ class DailyWideLoader:
 
         # Filter on short_ids with at least 2/3 days of data in the last 30 days compared to the station with most dates
         short_ids_last_30 = df_alt_30days_grouped.loc[
-            df_alt_30days_grouped.date >= ((2 / 3) * df_alt_30days_grouped.date.max()),
+            df_alt_30days_grouped.date >= ((2 / 3) * df_alt_30days_grouped.date.max()),  # type: ignore
             "short_id",
-        ].unique()
+        ].unique()  # type: ignore
 
         # Filter Tankstellen_info
         self.Tankstellen_info_30 = self.Tankstellen_info[
@@ -818,35 +763,29 @@ class DailyWideLoader:
         """A function uploading all processed dfs (self.Tankstellen_info_30, self.Tankstellen_info_365 and self.df_wide_final_ref_path) to cloud storage"""
         # Upload Tankstellen_info_30:
         Tankstellen_info_30_ref_path = f"oci://{self.configDict['oci_config']['bucket_name']}@{self.ociConfig.namespace}/{self.configDict['station_30']}"
-        upload.upload_df(
+        self.ociPandasConfig.write_df(
             df=self.Tankstellen_info_30,
             path=Tankstellen_info_30_ref_path,
-            format=self.configDict["station_30_format"],
-            config=self.ociConfig.config,
+            df_format=self.configDict["station_30_format"],
             chunk_size=1000,
-            verbose=self.verbose,
         )
 
         # Upload Tankstellen_info_365:
         Tankstellen_info_365_ref_path = f"oci://{self.configDict['oci_config']['bucket_name']}@{self.ociConfig.namespace}/{self.configDict['station_365']}"
-        upload.upload_df(
+        self.ociPandasConfig.write_df(
             df=self.Tankstellen_info_365,
             path=Tankstellen_info_365_ref_path,
-            format=self.configDict["station_365_format"],
-            config=self.ociConfig.config,
+            df_format=self.configDict["station_365_format"],
             chunk_size=1000,
-            verbose=self.verbose,
         )
 
         # Upload df_wide_final:
         df_wide_final_ref_path = f"oci://{self.configDict['oci_config']['bucket_name']}@{self.ociConfig.namespace}/{self.configDict['wide_df']}"
-        upload.upload_df(
+        self.ociPandasConfig.write_df(
             df=self.df_wide_final,
             path=df_wide_final_ref_path,
-            format=self.configDict["wide_df_format"],
-            config=self.ociConfig.config,
+            df_format=self.configDict["wide_df_format"],
             chunk_size=20000,
-            verbose=self.verbose,
         )
 
 
@@ -876,7 +815,8 @@ class WeeklyLoader:
         self.short_ids_last_365: list = []
         self.dateList: list = []
         self.configDict = get_config(config_path)
-        self.ociConfig = get_oci_config(self.configDict)
+        self.ociConfig = create_OCI_Connection_from_dict(self.configDict)
+        self.ociPandasConfig = create_PandasOCI_from_dict(self.configDict)
         self.max_date: datetime = datetime(1970, 1, 1)
         self.min_date: datetime = datetime(1970, 1, 2)
 
@@ -885,11 +825,9 @@ class WeeklyLoader:
     def load_df_alt(self) -> None:
         """Load the daily priceDF and the Tankstellen_info dataset"""
         # Load df_alt
-        self.priceDF = download.download_df(
+        self.priceDF = self.ociPandasConfig.retrieve_df(
             path=self.configDict["existing_price_df_path"],
-            config_=self.ociConfig,
             df_format=self.configDict["existing_price_df_format"],
-            verbose=self.verbose,
         )
 
         # Filter df_alt on last 400 days for performance improvement
@@ -908,11 +846,9 @@ class WeeklyLoader:
         self.priceDF["Day_Hours_py"] = self.priceDF["Day_Hours"].dt.to_pydatetime()
 
         # Load Tankstellen_info
-        self.Tankstellen_info = download.download_df(
+        self.Tankstellen_info = self.ociPandasConfig.retrieve_df(
             path=self.configDict["station_df"],
-            config_=self.ociConfig,
             df_format=self.configDict["station_df_format"],
-            verbose=self.verbose,
         )
 
         # Coalesce between brand and name
@@ -1007,11 +943,9 @@ class WeeklyLoader:
             all_years = list(self.df_weekly_final["year"].unique())
 
             # Load the old df
-            self.df_weekly_old = download.download_df(
+            self.df_weekly_old = self.ociPandasConfig.retrieve_df(
                 path=self.configDict["df_weekly"],
-                config_=self.ociConfig,
                 df_format=self.configDict["df_weekly_format"],
-                verbose=self.verbose,
             )
 
             # Initiate delete variable which will flag rows to delete due to being in the new df
@@ -1117,23 +1051,19 @@ class WeeklyLoader:
 
         # Upload df_weekly_final:
         df_weekly_final_path = f"oci://{self.configDict['oci_config']['bucket_name']}@{self.ociConfig.namespace}/{self.configDict['df_weekly']}"
-        upload.upload_df(
+        self.ociPandasConfig.write_df(
             self.df_weekly_final,
             path=df_weekly_final_path,
-            format=self.configDict["df_weekly_format"],
-            config=self.ociConfig.config,
+            df_format=self.configDict["df_weekly_format"],
             chunk_size=10000,
-            verbose=self.verbose,
         )
 
         # Upload week_mapper
         week_mapper_path = f"oci://{self.configDict['oci_config']['bucket_name']}@{self.ociConfig.namespace}/{self.configDict['week_mapper']}"
-        upload.upload_df(
+        self.ociPandasConfig.write_df(
             self.week_mapper,
             path=week_mapper_path,
-            format=self.configDict["week_mapper_format"],
-            config=self.ociConfig.config,
-            verbose=self.verbose,
+            df_format=self.configDict["week_mapper_format"],
         )
 
     def create_upload_htmls(self) -> None:

@@ -13,7 +13,7 @@ deactivate && source .venv/Scripts/activate
 
 # installing dependencies
 python -m pip install --upgrade pip
-python -m pip install -e '.[test]'
+python -m pip install -e '.[test]' --no-cache-dir
 
 
 #Building the package
@@ -23,7 +23,7 @@ pyproject-build
 tox -p
 
 #Running specifix tox env:
-tox -e py39
+tox -e py39 | tox -e py310 | tox -e py311
 
 #Running tox where env is recreated to install new dependencies:
 tox --recreate

@@ -1,9 +1,6 @@
 from datetime import datetime
 
 import pandas as pd
-from cloud_storage_wrapper.oci_access.config import OCI_Connection
-
-# import polars as pl
 
 
 pd.set_option("compute.use_bottleneck", False)
@@ -105,73 +102,3 @@ def download_multiple_files(
 
     # Return concatenated df
     return pd.concat(df_list, ignore_index=True)
-
-
-def download_df(
-    path: str,
-    config_: OCI_Connection,
-    columns: list[str] = [],
-    df_format: str = "csv",
-    verbose: bool = False,
-) -> pd.DataFrame:
-    if df_format not in {"csv", "parquet", "ftr"}:
-        raise ValueError(
-            f"{df_format} is an invalid df_format, please use one of the following: 'csv', 'parquet' or 'feather'"
-        )
-
-    if f".{df_format}" not in path:
-        raise ValueError(
-            f"The provided path {path} does not point to a file of format {df_format}"
-        )
-
-    ref_path = f"oci://{config_.bucket_name}@{config_.namespace}/{path}"
-
-    if verbose:
-        print(f"Attempting to download from {ref_path}")
-
-    if df_format == "csv":
-        if columns:
-            return pd.read_csv(
-                ref_path,
-                usecols=columns,
-                storage_options={"config": config_.config},
-                dtype_backend="pyarrow",
-                engine="pyarrow",
-            )
-        else:
-            return pd.read_csv(
-                ref_path,
-                storage_options={"config": config_.config},
-                dtype_backend="pyarrow",
-                engine="pyarrow",
-            )
-    elif df_format == "parquet":
-        if columns:
-            return pd.read_parquet(
-                ref_path,
-                columns=columns,
-                storage_options={"config": config_.config},
-                dtype_backend="pyarrow",
-                engine="pyarrow",
-            )
-        else:
-            return pd.read_parquet(
-                ref_path,
-                storage_options={"config": config_.config},
-                dtype_backend="pyarrow",
-                engine="pyarrow",
-            )
-    else:
-        if columns:
-            return pd.read_feather(
-                ref_path,
-                columns=columns,
-                storage_options={"config": config_.config},
-                dtype_backend="pyarrow",
-            )
-        else:
-            return pd.read_feather(
-                ref_path,
-                storage_options={"config": config_.config},
-                dtype_backend="pyarrow",
-            )

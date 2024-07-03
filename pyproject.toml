@@ -1,6 +1,6 @@
 [project]
 name = "tpa-data-processor"
-version = "0.0.3"
+version = "0.0.4"
 license = {file = "LICENSE"}
 authors = [
   {email = "jakobs.dataprojects@gmail.com"},
@@ -9,11 +9,11 @@ authors = [
 description = "A package for crawling and transforming gas prices from Germany"
 dependencies = ["pandas>=2.0, <2.2",
                 "pyyaml",
-                "cloud_storage_wrapper @ git+https://github.com/ja-ba/Cloud-Storage-Wrapper.git@v0.0.2",
+                "cloud_storage_wrapper @ git+https://github.com/ja-ba/Cloud-Storage-Wrapper.git@v0.0.3",
                 "leafmap~=0.22.0",
                 "folium~=0.13.0",
                 "psutil~=5.9.8",
-                "matplotlib",
+                "matplotlib>=3.0, <3.8",
                 "pydantic~=2.6"
                 ]
 
@@ -44,7 +44,7 @@ test = [
 legacy_tox_ini = """
 [tox]
 min_version = 4.0
-envlist = py38, py39, py310, py311
+envlist = py39, py310, py311
 isolated_build = True
 
 [testenv]
