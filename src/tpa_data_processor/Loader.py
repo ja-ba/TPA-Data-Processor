@@ -584,19 +584,17 @@ class DailyLoader:
 
         if len(self.dateList) > 0:
             # Upload price df:
-            price_ref_path = f"oci://{self.configDict['oci_config']['bucket_name']}@{self.ociConfig.namespace}/{self.configDict['target_price_df']}"
             self.ociPandasConfig.write_df(
                 df=self.priceDF,
-                path=price_ref_path,
+                path=self.configDict["target_price_df"],
                 df_format=self.configDict["target_price_df_format"],
                 chunk_size=10000,
             )
 
             # Upload station df:
-            station_ref_path = f"oci://{self.configDict['oci_config']['bucket_name']}@{self.ociConfig.namespace}/{self.configDict['station_df']}"
             self.ociPandasConfig.write_df(
                 df=self.stationDF,
-                path=station_ref_path,
+                path=self.configDict["station_df"],
                 df_format=self.configDict["station_df_format"],
                 chunk_size=10000,
             )
@@ -762,28 +760,25 @@ class DailyWideLoader:
     def save_dfs(self):
         """A function uploading all processed dfs (self.Tankstellen_info_30, self.Tankstellen_info_365 and self.df_wide_final_ref_path) to cloud storage"""
         # Upload Tankstellen_info_30:
-        Tankstellen_info_30_ref_path = f"oci://{self.configDict['oci_config']['bucket_name']}@{self.ociConfig.namespace}/{self.configDict['station_30']}"
         self.ociPandasConfig.write_df(
             df=self.Tankstellen_info_30,
-            path=Tankstellen_info_30_ref_path,
+            path=self.configDict["station_30"],
             df_format=self.configDict["station_30_format"],
             chunk_size=1000,
         )
 
         # Upload Tankstellen_info_365:
-        Tankstellen_info_365_ref_path = f"oci://{self.configDict['oci_config']['bucket_name']}@{self.ociConfig.namespace}/{self.configDict['station_365']}"
         self.ociPandasConfig.write_df(
             df=self.Tankstellen_info_365,
-            path=Tankstellen_info_365_ref_path,
+            path=self.configDict["station_365"],
             df_format=self.configDict["station_365_format"],
             chunk_size=1000,
         )
 
         # Upload df_wide_final:
-        df_wide_final_ref_path = f"oci://{self.configDict['oci_config']['bucket_name']}@{self.ociConfig.namespace}/{self.configDict['wide_df']}"
         self.ociPandasConfig.write_df(
             df=self.df_wide_final,
-            path=df_wide_final_ref_path,
+            path=self.configDict["wide_df"],
             df_format=self.configDict["wide_df_format"],
             chunk_size=20000,
         )
@@ -1050,19 +1045,17 @@ class WeeklyLoader:
         """A function uploading all processed dfs (self.df_weekly_final, self.week_mapper) to cloud storage"""
 
         # Upload df_weekly_final:
-        df_weekly_final_path = f"oci://{self.configDict['oci_config']['bucket_name']}@{self.ociConfig.namespace}/{self.configDict['df_weekly']}"
         self.ociPandasConfig.write_df(
             self.df_weekly_final,
-            path=df_weekly_final_path,
+            path=self.configDict["df_weekly"],
             df_format=self.configDict["df_weekly_format"],
             chunk_size=10000,
         )
 
         # Upload week_mapper
-        week_mapper_path = f"oci://{self.configDict['oci_config']['bucket_name']}@{self.ociConfig.namespace}/{self.configDict['week_mapper']}"
         self.ociPandasConfig.write_df(
             self.week_mapper,
-            path=week_mapper_path,
+            path=self.configDict["week_mapper"],
             df_format=self.configDict["week_mapper_format"],
         )
 

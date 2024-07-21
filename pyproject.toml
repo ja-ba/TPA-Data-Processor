@@ -1,6 +1,6 @@
 [project]
 name = "tpa-data-processor"
-version = "0.0.4"
+version = "0.0.5"
 license = {file = "LICENSE"}
 authors = [
   {email = "jakobs.dataprojects@gmail.com"},

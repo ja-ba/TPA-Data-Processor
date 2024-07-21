@@ -88,10 +88,10 @@ currentDL.save_dfs();'""",
         f"""source ~/myvirtualenv/bin/activate
     export OCI_KEY='{oci_key}'
     python -c 'from tpa_data_processor.Loader import WeeklyLoader; \
-    currentDWL = WeeklyLoader(config_path="tpa_config.yaml", fullLoad=False, verbose=True); \
-    currentDWL.process(); \
-    currentDWL.save_dfs(); \
-    currentDWL.create_upload_htmls();'
+    currentWL = WeeklyLoader(config_path="tpa_config.yaml", fullLoad=False, verbose=True); \
+    currentWL.process(); \
+    currentWL.save_dfs(); \
+    currentWL.create_upload_htmls();'
     rm tpa_config.yaml"""
         if datetime.today().weekday() == 6
         else """echo Nothing to do for WeeklyLoader

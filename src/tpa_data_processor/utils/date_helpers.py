@@ -13,14 +13,16 @@ def get_time_interval_from_df(
     # What is th last available date in the df --> make the start_ variable by adding one day
     last_df_date: datetime = df[date_col].max()
     start_ = last_df_date + timedelta(days=1)
-    print(start_)
+    if verbose:
+        print("Start date:", start_)
 
-    print(last_df_date)
+    if verbose:
+        print("Last date:", last_df_date)
     # Initiate empty day list:
     date_list = []
 
     # Append dates to list
-    for i in range((end_ - start_).days):
+    for i in range((end_ - start_).days + 1):
         day = start_ + timedelta(days=i)
         date_list.append(day)
 
