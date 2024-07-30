@@ -9,6 +9,7 @@ from airflow.providers.ssh.operators.ssh import SSHOperator
 package_version = Variable.get("PACKAGE_VERSION")
 tpa_config = Variable.get("TPA_CONFIG")
 oci_key = Variable.get("OCI_STORAGE_KEY")
+app_address = Variable.get("APP_ADDRESS")
 
 sshHook1 = SSHHook(ssh_conn_id="oci_data_processing", conn_timeout=3600)
 
@@ -107,7 +108,15 @@ currentDL.save_dfs();'""",
         cmd_timeout=3600,
     )
 
-    # makeDir >> createVirtualEnv >> DailyDeltaLoad >> DailyWideLoad >> WeeklyMapLoad
+    # Ping the app to prevent it from going to sleep
+    CURLApp = SSHOperator(
+        task_id="CURLApp",
+        ssh_conn_id="oci_data_processing",
+        command=f"curl {app_address}",
+        dag=dag,
+        cmd_timeout=30,
+    )
+
     (
         makeDir
         >> createVirtualEnv
@@ -115,4 +124,5 @@ currentDL.save_dfs();'""",
         >> DailyDeltaLoad
         >> DailyWideLoad
         >> WeeklyMapLoad
+        >> CURLApp
     )
