@@ -49,7 +49,7 @@ def create_Full_Load_relativeRange(provide_oci_config):
 def create_Delta_Load(provide_oci_config, create_Full_Load_fixedRange):
     create_Full_Load_fixedRange.save_dfs()
 
-    today_ = datetime.combine(datetime(2024, 1, 20), datetime.min.time())
+    today_ = datetime.combine(datetime(2024, 1, 19), datetime.min.time())
 
     delta_Load_DL = DailyLoader(
         config_path=provide_oci_config, full_load=False, verbose=True, end_=today_
